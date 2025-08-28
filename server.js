@@ -8,11 +8,11 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.static("public"));
 
-// Flight plan cache
+// Store ALL flights
 let flightPlans = [];
 
-// Keep only last 30 minutes
-const CUTOFF = 30 * 60 * 1000;
+// Only keep last 20 minutes
+const CUTOFF = 20 * 60 * 1000;
 
 // --- Fetch initial snapshot of flights ---
 async function fetchInitialFlights() {
@@ -38,7 +38,7 @@ async function fetchInitialFlights() {
 // --- Connect to WebSocket for live updates ---
 function connectWS() {
   const ws = new WebSocket("wss://24data.ptfs.app/wss", {
-    headers: { Origin: "" } // avoid CORS issues
+    headers: { Origin: "" }
   });
 
   ws.on("open", () => {
@@ -55,19 +55,14 @@ function connectWS() {
           timestamp: Date.now()
         };
 
-        // Replace if exists, otherwise add
-        const idx = flightPlans.findIndex(x => x.id === fp.id);
-        if (idx !== -1) {
-          flightPlans[idx] = fp;
-        } else {
-          flightPlans.push(fp);
-        }
+        // Push new record (keep history, not replace)
+        flightPlans.push(fp);
 
-        // Remove stale flights (older than cutoff)
+        // Remove stale flights older than cutoff
         const cutoff = Date.now() - CUTOFF;
         flightPlans = flightPlans.filter(fp => fp.timestamp >= cutoff);
 
-        console.log(`✈️ Flight plan updated: ${fp.callsign || fp.id}`);
+        console.log(`✈️ Flight plan received: ${fp.callsign || fp.id}`);
       }
     } catch (e) {
       console.error("❌ Error parsing WS message:", e);
@@ -86,7 +81,18 @@ function connectWS() {
 
 // --- API endpoint for frontend ---
 app.get("/flightplans", (req, res) => {
-  res.json(flightPlans);
+  const airport = req.query.airport?.toUpperCase();
+  const cutoff = Date.now() - CUTOFF;
+
+  let results = flightPlans.filter(fp => fp.timestamp >= cutoff);
+
+  if (airport) {
+    results = results.filter(fp =>
+      fp.departure?.icao === airport || fp.arrival?.icao === airport
+    );
+  }
+
+  res.json(results);
 });
 
 // --- Start server ---
