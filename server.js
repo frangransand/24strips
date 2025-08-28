@@ -8,13 +8,14 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.static("public"));
 
-// Store ALL flights
+// Flight plan cache
 let flightPlans = [];
+const CUTOFF = 20 * 60 * 1000; // 20 minutes
 
-// Only keep last 20 minutes
-const CUTOFF = 20 * 60 * 1000;
+// Airports cache
+let airports = [];
 
-// --- Fetch initial snapshot of flights ---
+// Fetch initial flight plans
 async function fetchInitialFlights() {
   try {
     console.log("📡 Fetching initial flight plans...");
@@ -22,50 +23,47 @@ async function fetchInitialFlights() {
     const data = await res.json();
 
     if (Array.isArray(data)) {
-      flightPlans = data.map(fp => ({
-        ...fp,
-        timestamp: Date.now()
-      }));
+      flightPlans = data.map(fp => ({ ...fp, timestamp: Date.now() }));
       console.log(`✅ Loaded ${flightPlans.length} initial flight plans`);
-    } else {
-      console.warn("⚠️ Unexpected snapshot response:", data);
     }
   } catch (err) {
-    console.error("❌ Error fetching initial flights:", err);
+    console.error("❌ Error fetching flight plans:", err);
   }
 }
 
-// --- Connect to WebSocket for live updates ---
-function connectWS() {
-  const ws = new WebSocket("wss://24data.ptfs.app/wss", {
-    headers: { Origin: "" }
-  });
+// Fetch airports from 24data
+async function fetchAirports() {
+  try {
+    console.log("📡 Fetching airport list...");
+    const res = await fetch("https://24data.ptfs.app/atis");
+    const data = await res.json();
+    airports = data.map(a => a.airport);
+    console.log(`✅ Loaded ${airports.length} airports`);
+  } catch (err) {
+    console.error("❌ Error fetching airports:", err);
+  }
+}
 
-  ws.on("open", () => {
-    console.log("🔌 Connected to 24data WebSocket");
-  });
+// WebSocket connection for live updates
+function connectWS() {
+  const ws = new WebSocket("wss://24data.ptfs.app/wss", { headers: { Origin: "" } });
+
+  ws.on("open", () => console.log("🔌 Connected to 24data WebSocket"));
 
   ws.on("message", (msg) => {
     try {
       const data = JSON.parse(msg.toString());
 
       if (data.t === "FLIGHT_PLAN" || data.t === "EVENT_FLIGHT_PLAN") {
-        const fp = {
-          ...data.d,
-          timestamp: Date.now()
-        };
-
-        // Push new record (keep history, not replace)
+        const fp = { ...data.d, timestamp: Date.now() };
         flightPlans.push(fp);
 
-        // Remove stale flights older than cutoff
+        // Remove old flight plans
         const cutoff = Date.now() - CUTOFF;
         flightPlans = flightPlans.filter(fp => fp.timestamp >= cutoff);
-
-        console.log(`✈️ Flight plan received: ${fp.callsign || fp.id}`);
       }
     } catch (e) {
-      console.error("❌ Error parsing WS message:", e);
+      console.error("❌ WS parse error:", e);
     }
   });
 
@@ -74,30 +72,30 @@ function connectWS() {
     setTimeout(connectWS, 5000);
   });
 
-  ws.on("error", (err) => {
-    console.error("⚠️ WebSocket error:", err.message);
-  });
+  ws.on("error", (err) => console.error("❌ WebSocket error:", err.message));
 }
 
-// --- API endpoint for frontend ---
+// API: Get airports
+app.get("/airports", (req, res) => res.json(airports));
+
+// API: Get flight plans
 app.get("/flightplans", (req, res) => {
   const airport = req.query.airport?.toUpperCase();
-  const cutoff = Date.now() - CUTOFF;
-
-  let results = flightPlans.filter(fp => fp.timestamp >= cutoff);
+  let results = flightPlans.filter(fp => fp.timestamp >= Date.now() - CUTOFF);
 
   if (airport) {
     results = results.filter(fp =>
-      fp.departure?.icao === airport || fp.arrival?.icao === airport
+      fp.departing?.toUpperCase() === airport || fp.arriving?.toUpperCase() === airport
     );
   }
 
   res.json(results);
 });
 
-// --- Start server ---
+// Start server
 app.listen(PORT, async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  await fetchAirports();
   await fetchInitialFlights();
   connectWS();
 });
