@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import WebSocket from "ws";
-import fetch from "node-fetch"; // make sure to install node-fetch: npm install node-fetch
+import fetch from "node-fetch";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,7 +22,7 @@ async function fetchAirports() {
     console.log("📡 Fetching airport list...");
     const res = await fetch("https://24data.ptfs.app/atis");
     const data = await res.json();
-    airports = data.map(a => a.airport);
+    airports = data.map(a => ({ icao: a.airport, name: a.airport }));
     console.log(`✅ Loaded ${airports.length} airports`);
   } catch (err) {
     console.error("❌ Error fetching airports:", err);
@@ -31,9 +31,7 @@ async function fetchAirports() {
 
 // --- WebSocket connection to 24data ---
 function connectWS() {
-  const ws = new WebSocket("wss://24data.ptfs.app/wss", {
-    headers: { Origin: "" } // browsers set Origin; server should not
-  });
+  const ws = new WebSocket("wss://24data.ptfs.app/wss", { headers: { Origin: "" } });
 
   ws.on("open", () => console.log("🔌 Connected to 24data WebSocket"));
 
@@ -44,6 +42,12 @@ function connectWS() {
       // Only store flight plans
       if (data.t === "FLIGHT_PLAN" || data.t === "EVENT_FLIGHT_PLAN") {
         const fp = { ...data.d, timestamp: Date.now() };
+
+        // Assign controller type based on departure/arrival airport
+        fp.controllerType = "DELIVERY"; // default
+        if (fp.departing) fp.controllerType = "DELIVERY";
+        if (fp.arriving) fp.controllerType = "ARRIVAL";
+
         flightPlans.push(fp);
 
         // Keep only last 20 minutes
@@ -64,12 +68,12 @@ function connectWS() {
 }
 
 // --- API endpoint: get airports ---
-app.get("/airports", (req, res) => {
+app.get("/api/airports", (req, res) => {
   res.json(airports);
 });
 
 // --- API endpoint: get flight plans ---
-app.get("/flightplans", (req, res) => {
+app.get("/api/strips", (req, res) => {
   const airport = req.query.airport?.toUpperCase();
   const now = Date.now();
 
