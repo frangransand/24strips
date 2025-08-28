@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ATC 24 – Flight Strip Manager</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">ATC 24 – Flight Strip Manager</div>
+    <div class="controls">
+      <label>Airport:
+        <input id="airport" placeholder="e.g. IMLR" maxlength="6" />
+      </label>
+      <label class="chk">
+        <input id="chkDep" type="checkbox" checked /> Departures
+      </label>
+      <label class="chk">
+        <input id="chkArr" type="checkbox" checked /> Arrivals
+      </label>
+      <button id="btnRefresh">Refresh</button>
+      <button id="btnNew">New Strip</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="stripGrid" class="grid"></section>
+  </main>
+
+  <!-- Modal -->
+  <dialog id="modal">
+    <form id="modalForm" method="dialog" class="modal">
+      <h3 id="modalTitle">New Strip</h3>
+      <div class="row">
+        <label>Callsign <input name="callsign" required /></label>
+        <label>Real Callsign <input name="realcallsign" /></label>
+        <label>Roblox Name <input name="robloxName" /></label>
+      </div>
+      <div class="row">
+        <label>Aircraft <input name="aircraft" /></label>
+        <label>Rules
+          <select name="flightrules">
+            <option value="">—</option>
+            <option>IFR</option>
+            <option>VFR</option>
+          </select>
+        </label>
+        <label>FL <input name="flightlevel" placeholder="040" /></label>
+      </div>
+      <div class="row">
+        <label>From <input name="departing" placeholder="IMLR" /></label>
+        <label>To <input name="arriving" placeholder="IGRV" /></label>
+        <label>Pinned <input name="pinned" type="checkbox" /></label>
+      </div>
+      <div class="row">
+        <label class="grow">Route <input name="route" /></label>
+      </div>
+      <div class="row">
+        <label class="grow">Remarks <input name="remarks" /></label>
+      </div>
+      <div class="row">
+        <label>Status
+          <select name="status">
+            <option>Filed</option><option>Cleared</option><option>Push</option>
+            <option>Taxi</option><option>LineUp</option><option>Airborne</option>
+            <option>HandedOff</option><option>Cancelled</option>
+          </select>
+        </label>
+        <label class="grow">Scratchpad <input name="scratchpad" /></label>
+      </div>
+      <menu class="actions">
+        <button value="cancel" type="reset">Cancel</button>
+        <button value="submit" id="modalSubmit">Save</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <template id="stripTemplate">
+    <article class="strip">
+      <header class="strip-hd">
+        <div class="cs"></div>
+        <div class="status"></div>
+      </header>
+      <div class="grid-rows">
+        <div class="cell">
+          <div class="lbl">A/C</div><div class="val ac"></div>
+        </div>
+        <div class="cell">
+          <div class="lbl">Rules</div><div class="val rules"></div>
+        </div>
+        <div class="cell">
+          <div class="lbl">From</div><div class="val dep"></div>
+        </div>
+        <div class="cell">
+          <div class="lbl">To</div><div class="val arr"></div>
+        </div>
+        <div class="cell">
+          <div class="lbl">FL</div><div class="val fl"></div>
+        </div>
+        <div class="cell span2">
+          <div class="lbl">Route</div><div class="val rte"></div>
+        </div>
+        <div class="cell span2">
+          <div class="lbl">Remarks</div><div class="val rmk"></div>
+        </div>
+        <div class="cell span2">
+          <div class="lbl">Scratch</div><div class="val spd"></div>
+        </div>
+        <div class="meta">Filed by <span class="roblox"></span></div>
+      </div>
+      <footer class="strip-ft">
+        <button class="btn small edit">Edit</button>
+        <button class="btn small pin">Pin</button>
+        <button class="btn small del">Delete</button>
+        <span class="time"></span>
+      </footer>
+    </article>
+  </template>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
