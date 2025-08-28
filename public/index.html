@@ -28,66 +28,6 @@
     <section id="stripGrid" class="grid"></section>
   </main>
 
-  <!-- Modal -->
-  <dialog id="modal">
-    <form id="modalForm" method="dialog" class="modal">
-      <h3 id="modalTitle">New Strip</h3>
-      <div class="row">
-        <label>Callsign <input name="callsign" required /></label>
-        <label>Real Callsign <input name="realcallsign" /></label>
-        <label>Roblox Name <input name="robloxName" /></label>
-      </div>
-      <div class="row">
-        <label>Aircraft <input name="aircraft" /></label>
-        <label>Rules
-          <select name="flightrules">
-            <option value="">—</option>
-            <option>IFR</option>
-            <option>VFR</option>
-          </select>
-        </label>
-        <label>FL <input name="flightlevel" placeholder="040" /></label>
-      </div>
-      <div class="row">
-        <label>From <input name="departing" placeholder="IMLR" /></label>
-        <label>To <input name="arriving" placeholder="IGRV" /></label>
-        <label>Pinned <input name="pinned" type="checkbox" /></label>
-      </div>
-      <div class="row">
-        <label class="grow">Route <input name="route" /></label>
-      </div>
-      <div class="row">
-        <label class="grow">Remarks <input name="remarks" /></label>
-      </div>
-      <div class="row">
-        <label>Status
-          <select name="status">
-            <option>Filed</option><option>Cleared</option><option>Push</option>
-            <option>Taxi</option><option>LineUp</option><option>Airborne</option>
-            <option>HandedOff</option><option>Cancelled</option>
-          </select>
-        </label>
-        <label class="grow">Scratchpad <input name="scratchpad" /></label>
-      </div>
-      <div class="row">
-        <label>Controller Type
-          <select name="controllerType">
-            <option value="">—</option>
-            <option>DELIVERY</option>
-            <option>GND</option>
-            <option>TWR</option>
-            <option>CTR</option>
-            <option>ARRIVAL</option>
-          </select>
-        </label>
-      </div>
-      <menu class="actions">
-        <button value="cancel" type="reset">Cancel</button>
-        <button value="submit" id="modalSubmit">Save</button>
-      </menu>
-    </form>
-  </dialog>
-
   <template id="stripTemplate">
     <article class="strip">
       <header class="strip-hd">
@@ -115,6 +55,6 @@
     </article>
   </template>
 
-  <script src="/app.js" type="module"></script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>
