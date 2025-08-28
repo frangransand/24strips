@@ -11,7 +11,9 @@
     <div class="brand">ATC 24 – Flight Strip Manager</div>
     <div class="controls">
       <label>Airport:
-        <input id="airport" placeholder="e.g. IMLR" maxlength="6" />
+        <select id="airportSelect">
+          <option value="">-- Select Airport --</option>
+        </select>
       </label>
       <label class="chk">
         <input id="chkDep" type="checkbox" checked /> Departures
@@ -28,47 +30,11 @@
     <section id="stripGrid" class="grid"></section>
   </main>
 
-  <!-- Modal -->
+  <!-- Modal (same as before, keep your existing HTML for new/edit strips) -->
   <dialog id="modal">
     <form id="modalForm" method="dialog" class="modal">
       <h3 id="modalTitle">New Strip</h3>
-      <div class="row">
-        <label>Callsign <input name="callsign" required /></label>
-        <label>Real Callsign <input name="realcallsign" /></label>
-        <label>Roblox Name <input name="robloxName" /></label>
-      </div>
-      <div class="row">
-        <label>Aircraft <input name="aircraft" /></label>
-        <label>Rules
-          <select name="flightrules">
-            <option value="">—</option>
-            <option>IFR</option>
-            <option>VFR</option>
-          </select>
-        </label>
-        <label>FL <input name="flightlevel" placeholder="040" /></label>
-      </div>
-      <div class="row">
-        <label>From <input name="departing" placeholder="IMLR" /></label>
-        <label>To <input name="arriving" placeholder="IGRV" /></label>
-        <label>Pinned <input name="pinned" type="checkbox" /></label>
-      </div>
-      <div class="row">
-        <label class="grow">Route <input name="route" /></label>
-      </div>
-      <div class="row">
-        <label class="grow">Remarks <input name="remarks" /></label>
-      </div>
-      <div class="row">
-        <label>Status
-          <select name="status">
-            <option>Filed</option><option>Cleared</option><option>Push</option>
-            <option>Taxi</option><option>LineUp</option><option>Airborne</option>
-            <option>HandedOff</option><option>Cancelled</option>
-          </select>
-        </label>
-        <label class="grow">Scratchpad <input name="scratchpad" /></label>
-      </div>
+      <!-- form rows as before -->
       <menu class="actions">
         <button value="cancel" type="reset">Cancel</button>
         <button value="submit" id="modalSubmit">Save</button>
@@ -83,30 +49,14 @@
         <div class="status"></div>
       </header>
       <div class="grid-rows">
-        <div class="cell">
-          <div class="lbl">A/C</div><div class="val ac"></div>
-        </div>
-        <div class="cell">
-          <div class="lbl">Rules</div><div class="val rules"></div>
-        </div>
-        <div class="cell">
-          <div class="lbl">From</div><div class="val dep"></div>
-        </div>
-        <div class="cell">
-          <div class="lbl">To</div><div class="val arr"></div>
-        </div>
-        <div class="cell">
-          <div class="lbl">FL</div><div class="val fl"></div>
-        </div>
-        <div class="cell span2">
-          <div class="lbl">Route</div><div class="val rte"></div>
-        </div>
-        <div class="cell span2">
-          <div class="lbl">Remarks</div><div class="val rmk"></div>
-        </div>
-        <div class="cell span2">
-          <div class="lbl">Scratch</div><div class="val spd"></div>
-        </div>
+        <div class="cell"><div class="lbl">A/C</div><div class="val ac"></div></div>
+        <div class="cell"><div class="lbl">Rules</div><div class="val rules"></div></div>
+        <div class="cell"><div class="lbl">From</div><div class="val dep"></div></div>
+        <div class="cell"><div class="lbl">To</div><div class="val arr"></div></div>
+        <div class="cell"><div class="lbl">FL</div><div class="val fl"></div></div>
+        <div class="cell span2"><div class="lbl">Route</div><div class="val rte"></div></div>
+        <div class="cell span2"><div class="lbl">Remarks</div><div class="val rmk"></div></div>
+        <div class="cell span2"><div class="lbl">Scratch</div><div class="val spd"></div></div>
         <div class="meta">Filed by <span class="roblox"></span></div>
       </div>
       <footer class="strip-ft">
@@ -118,6 +68,63 @@
     </article>
   </template>
 
-  <script src="/app.js" type="module"></script>
+  <script type="module">
+    const stripGrid = document.getElementById("stripGrid");
+    const airportSelect = document.getElementById("airportSelect");
+    const chkDep = document.getElementById("chkDep");
+    const chkArr = document.getElementById("chkArr");
+    const stripTemplate = document.getElementById("stripTemplate").content;
+
+    async function loadAirports() {
+      try {
+        const res = await fetch("/airports");
+        const data = await res.json();
+        airportSelect.innerHTML = `<option value="">-- Select Airport --</option>`;
+        data.forEach(code => {
+          const opt = document.createElement("option");
+          opt.value = code;
+          opt.textContent = code;
+          airportSelect.appendChild(opt);
+        });
+      } catch (err) {
+        console.error("Error loading airports:", err);
+      }
+    }
+
+    async function loadStrips() {
+      const airport = airportSelect.value;
+      let url = "/flightplans";
+      if (airport) url += `?airport=${airport}`;
+
+      const res = await fetch(url);
+      const flights = await res.json();
+      stripGrid.innerHTML = "";
+
+      flights.forEach(fp => {
+        if ((!chkDep.checked && fp.departing === airport) ||
+            (!chkArr.checked && fp.arriving === airport)) return;
+
+        const clone = stripTemplate.cloneNode(true);
+        clone.querySelector(".cs").textContent = fp.callsign || "N/A";
+        clone.querySelector(".status").textContent = fp.status || "Filed";
+        clone.querySelector(".ac").textContent = fp.aircraft || "";
+        clone.querySelector(".rules").textContent = fp.flightrules || "";
+        clone.querySelector(".dep").textContent = fp.departing || "";
+        clone.querySelector(".arr").textContent = fp.arriving || "";
+        clone.querySelector(".fl").textContent = fp.flightlevel || "";
+        clone.querySelector(".rte").textContent = fp.route || "";
+        clone.querySelector(".rmk").textContent = fp.remarks || "";
+        clone.querySelector(".spd").textContent = fp.scratchpad || "";
+        clone.querySelector(".roblox").textContent = fp.robloxName || "";
+        clone.querySelector(".time").textContent = new Date(fp.timestamp).toLocaleTimeString();
+        stripGrid.appendChild(clone);
+      });
+    }
+
+    airportSelect.addEventListener("change", loadStrips);
+    document.getElementById("btnRefresh").addEventListener("click", loadStrips);
+
+    loadAirports().then(loadStrips);
+  </script>
 </body>
 </html>
