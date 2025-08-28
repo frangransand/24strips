@@ -51,19 +51,16 @@ function connectWS() {
   ws.on("open", () => console.log("🔌 Connected to 24data WebSocket"));
 
   ws.on("message", (msg) => {
-    try {
-      const data = JSON.parse(msg.toString());
-
-      if (data.t === "FLIGHT_PLAN" || data.t === "EVENT_FLIGHT_PLAN") {
-        const fp = { ...data.d, timestamp: Date.now() };
-        flightPlans.push(fp);
-
-        // Remove old flight plans
-        const cutoff = Date.now() - CUTOFF;
-        flightPlans = flightPlans.filter(fp => fp.timestamp >= cutoff);
-      }
-    } catch (e) {
-      console.error("❌ WS parse error:", e);
+    const data = JSON.parse(msg.toString());
+  
+    // Only store flight plans
+    if (data.t === "FLIGHT_PLAN" || data.t === "EVENT_FLIGHT_PLAN") {
+      const fp = { ...data.d, timestamp: Date.now() };
+      flightPlans.push(fp);
+  
+      // Keep only last 20 minutes
+      const cutoff = Date.now() - CUTOFF;
+      flightPlans = flightPlans.filter(fp => fp.timestamp >= cutoff);
     }
   });
 
