@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import WebSocket from "ws";
+import fetch from "node-fetch"; // make sure to install node-fetch: npm install node-fetch
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -8,30 +9,14 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.static("public"));
 
-// Flight plan cache
+// --- Flight plan cache ---
 let flightPlans = [];
 const CUTOFF = 20 * 60 * 1000; // 20 minutes
 
-// Airports cache
+// --- Airport cache ---
 let airports = [];
 
-// Fetch initial flight plans
-async function fetchInitialFlights() {
-  try {
-    console.log("📡 Fetching initial flight plans...");
-    const res = await fetch("https://24data.ptfs.app/api/v1/flight-plans");
-    const data = await res.json();
-
-    if (Array.isArray(data)) {
-      flightPlans = data.map(fp => ({ ...fp, timestamp: Date.now() }));
-      console.log(`✅ Loaded ${flightPlans.length} initial flight plans`);
-    }
-  } catch (err) {
-    console.error("❌ Error fetching flight plans:", err);
-  }
-}
-
-// Fetch airports from 24data
+// --- Fetch airports from 24data API ---
 async function fetchAirports() {
   try {
     console.log("📡 Fetching airport list...");
@@ -44,23 +29,29 @@ async function fetchAirports() {
   }
 }
 
-// WebSocket connection for live updates
+// --- WebSocket connection to 24data ---
 function connectWS() {
-  const ws = new WebSocket("wss://24data.ptfs.app/wss", { headers: { Origin: "" } });
+  const ws = new WebSocket("wss://24data.ptfs.app/wss", {
+    headers: { Origin: "" } // browsers set Origin; server should not
+  });
 
   ws.on("open", () => console.log("🔌 Connected to 24data WebSocket"));
 
   ws.on("message", (msg) => {
-    const data = JSON.parse(msg.toString());
-  
-    // Only store flight plans
-    if (data.t === "FLIGHT_PLAN" || data.t === "EVENT_FLIGHT_PLAN") {
-      const fp = { ...data.d, timestamp: Date.now() };
-      flightPlans.push(fp);
-  
-      // Keep only last 20 minutes
-      const cutoff = Date.now() - CUTOFF;
-      flightPlans = flightPlans.filter(fp => fp.timestamp >= cutoff);
+    try {
+      const data = JSON.parse(msg.toString());
+
+      // Only store flight plans
+      if (data.t === "FLIGHT_PLAN" || data.t === "EVENT_FLIGHT_PLAN") {
+        const fp = { ...data.d, timestamp: Date.now() };
+        flightPlans.push(fp);
+
+        // Keep only last 20 minutes
+        const cutoff = Date.now() - CUTOFF;
+        flightPlans = flightPlans.filter(fp => fp.timestamp >= cutoff);
+      }
+    } catch (err) {
+      console.error("❌ WS parse error:", err);
     }
   });
 
@@ -72,13 +63,18 @@ function connectWS() {
   ws.on("error", (err) => console.error("❌ WebSocket error:", err.message));
 }
 
-// API: Get airports
-app.get("/airports", (req, res) => res.json(airports));
+// --- API endpoint: get airports ---
+app.get("/airports", (req, res) => {
+  res.json(airports);
+});
 
-// API: Get flight plans
+// --- API endpoint: get flight plans ---
 app.get("/flightplans", (req, res) => {
   const airport = req.query.airport?.toUpperCase();
-  let results = flightPlans.filter(fp => fp.timestamp >= Date.now() - CUTOFF);
+  const now = Date.now();
+
+  // Only include flight plans within last 20 minutes
+  let results = flightPlans.filter(fp => fp.timestamp >= now - CUTOFF);
 
   if (airport) {
     results = results.filter(fp =>
@@ -89,10 +85,9 @@ app.get("/flightplans", (req, res) => {
   res.json(results);
 });
 
-// Start server
+// --- Start server ---
 app.listen(PORT, async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   await fetchAirports();
-  await fetchInitialFlights();
   connectWS();
 });
